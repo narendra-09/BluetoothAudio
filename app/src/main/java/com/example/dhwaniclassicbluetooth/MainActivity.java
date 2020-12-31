@@ -9,6 +9,7 @@ import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothA2dp;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothHeadset;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothSocket;
 import android.content.BroadcastReceiver;
@@ -27,11 +28,14 @@ import android.widget.Toast;
 
 import com.example.dhwaniclassicbluetooth.databinding.ActivityMainBinding;
 
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -45,7 +49,9 @@ public class MainActivity extends AppCompatActivity {
     private BluetoothAdapter bluetoothAdapter;
     private BluetoothDevice bluetoothDevice;
     private BluetoothA2dp bluetoothA2dp;
+    private BluetoothHeadset bluetoothHeadset;
     private AudioManager audioManager;
+    private BluetoothA2dpConnection bluetoothA2dpConnection;
 
     //UUID
     private static final UUID myUUID = UUID.fromString("00001101-0000-1000-8000-00805f9b34fb");
@@ -87,7 +93,6 @@ public class MainActivity extends AppCompatActivity {
 
     private void setupBluetooth() {
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-        bluetoothAdapter.getProfileProxy(MainActivity.this, serviceListener, BluetoothProfile.A2DP);
         if (bluetoothAdapter == null) {
             Toast.makeText(this, "Bluetooth is Not supported in this device", Toast.LENGTH_SHORT).show();
         }
@@ -109,11 +114,24 @@ public class MainActivity extends AppCompatActivity {
             for (BluetoothDevice device : pairedDevices) {
                 if(device.getName().equals("JBL GO")){
                     mainBinding.bDevices.setText(device.getName() + " " + device.getAddress());
-                    bluetoothDevice = device;}
+                    bluetoothDevice = device;
+                }
             }
         } else {
             scanDevices();
         }
+    }
+
+    private BluetoothDevice getDevices(){
+        Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
+        if (pairedDevices.size() > 0) {
+            for (BluetoothDevice device : pairedDevices) {
+                if(device.getName().equals("JBL GO")){
+                    bluetoothDevice = device;
+                }
+            }
+        }
+        return bluetoothDevice;
     }
 
     private void scanDevices() {
@@ -130,14 +148,17 @@ public class MainActivity extends AppCompatActivity {
         if (connectThread == null && bluetoothDevice != null) {
             connectThread = new ConnectThread(bluetoothDevice);
             connectThread.start();
+            bluetoothAdapter.getProfileProxy(this,serviceListener,BluetoothProfile.A2DP);
         } else {
             Toast.makeText(this, "Failed to connect", Toast.LENGTH_SHORT).show();
         }
-    }
+          }
 
     @SuppressLint("SetTextI18n")
     private void disconnectFromDevice() {
         if (connectThread != null) {
+            disconnectAudio(bluetoothA2dp);
+            bluetoothAdapter.closeProfileProxy(BluetoothProfile.A2DP, bluetoothA2dp);
             connectThread.cancel();
             mainBinding.bConnect.setText("Connect");
         }
@@ -233,8 +254,6 @@ public class MainActivity extends AppCompatActivity {
                    /* runOnUiThread(()-> mainBinding.bConnect.setText("Connected"));
                     dataFlowThread = new DataFlowThread(bluetoothSocket);
                     dataFlowThread.start(); */
-                   // bluetoothAdapter.getProfileProxy(MainActivity.this, serviceListener, BluetoothProfile.A2DP);
-
                 }
             } catch (IOException e) {
                 try {
@@ -339,15 +358,12 @@ public class MainActivity extends AppCompatActivity {
         public void onServiceConnected(int profile, BluetoothProfile proxy) {
             if (profile == BluetoothProfile.A2DP) {
                 bluetoothA2dp = (BluetoothA2dp) proxy;
-               // blHack(bluetoothA2dp);
+                blHack(bluetoothA2dp);
+                Log.d(TAG, "onServiceConnected: Connected");
                 Log.d(TAG, "onServiceConnected: " + bluetoothA2dp.getConnectionState(bluetoothDevice));
-                if (audioManager.isBluetoothA2dpOn()) {
-                    Log.d(TAG, "onServiceConnected: A2dp On");
-                }
                 //playMusic();
             }
         }
-
         @Override
         public void onServiceDisconnected(int profile) {
 
@@ -357,6 +373,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        bluetoothA2dpConnection.disconnect(bluetoothDevice);
         bluetoothAdapter.closeProfileProxy(BluetoothProfile.A2DP, bluetoothA2dp);
         connectThread.cancel();
     }
@@ -368,10 +385,16 @@ public class MainActivity extends AppCompatActivity {
             if (BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED.equals(action)) {
                 int state = intent.getIntExtra(BluetoothA2dp.EXTRA_STATE, BluetoothA2dp.STATE_DISCONNECTED);
                 if (state == BluetoothA2dp.STATE_CONNECTED) {
+                    Log.d(TAG, "onReceive: ");
+                    playMusic();
                     if (audioManager.isBluetoothA2dpOn()) {
                         //playMusic();
                         Log.d(TAG, "onReceive: ");
                     }
+                }
+                else if(state == BluetoothA2dp.STATE_DISCONNECTED){
+                    Log.d(TAG, "onReceive: Disconnected");
+
                 }
 
             }
@@ -389,13 +412,24 @@ public class MainActivity extends AppCompatActivity {
         mediaPlayer.start();
     }
 
-   /* private void blHack(BluetoothProfile proxy){
+    private void blHack(BluetoothProfile proxy){
         try{
-            @SuppressLint("DiscouragedPrivateApi") Method connect = BluetoothA2dp.class.getDeclaredMethod("connect",BluetoothDevice.class);
-            connect.invoke(proxy,bluetoothDevice);
+             @SuppressLint("DiscouragedPrivateApi") Method connect = BluetoothA2dp.class.getDeclaredMethod("connect",BluetoothDevice.class);
+             connect.invoke(proxy,bluetoothDevice);
         } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
             e.printStackTrace();
         }
-    }*/
+        bluetoothA2dpConnection = new BluetoothA2dpConnection();
+        bluetoothA2dpConnection.connect(bluetoothDevice);
+    }
+    private void disconnectAudio(BluetoothProfile proxy){
+        try{
+            @SuppressLint("DiscouragedPrivateApi") Method disconnect = BluetoothA2dp.class.getDeclaredMethod("disconnect",BluetoothDevice.class);
+            disconnect.invoke(proxy,bluetoothDevice);
+        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+            e.printStackTrace();
+        }
+        bluetoothA2dpConnection.disconnect(bluetoothDevice);
+    }
 
 }
