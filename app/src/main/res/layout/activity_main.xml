@@ -96,6 +96,49 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/led" />
+
+        <Button
+            android:id="@+id/play"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/play"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/b_disconnect"
+            android:layout_marginStart="10dp"
+            android:layout_marginTop="20dp"
+            />
+        <Button
+            android:id="@+id/pause"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/pause"
+            app:layout_constraintStart_toEndOf="@id/play"
+            app:layout_constraintTop_toBottomOf="@id/b_disconnect"
+            android:layout_marginStart="10dp"
+            android:layout_marginTop="20dp"
+            />
+
+        <ImageButton
+            android:id="@+id/vol_down"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="44dp"
+            android:background="@android:color/transparent"
+            android:src="@drawable/vol_down"
+            app:layout_constraintBottom_toBottomOf="@+id/pause"
+            app:layout_constraintStart_toEndOf="@id/pause"
+            app:layout_constraintTop_toTopOf="@+id/pause" />
+        <ImageButton
+            android:id="@+id/vol_up"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="44dp"
+            android:background="@android:color/transparent"
+            android:src="@drawable/volume_up"
+            app:layout_constraintBottom_toBottomOf="@+id/pause"
+            app:layout_constraintStart_toEndOf="@id/vol_down"
+            app:layout_constraintTop_toTopOf="@+id/pause" />
+
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 </androidx.core.widget.NestedScrollView>

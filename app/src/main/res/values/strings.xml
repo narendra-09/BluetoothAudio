@@ -11,4 +11,6 @@
     <string name="send_message">send message</string>
     <string name="led_is_off">LED IS OFF</string>
     <string name="led_is">LED IS</string>
+    <string name="play">Play</string>
+    <string name="pause">Pause</string>
 </resources>
